@@ -3,7 +3,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { webcrypto } from 'node:crypto';
 import { db, type Lock } from '../src/database';
 import { Transport } from '../src/bluetooth';
-import { operate, rename, setAutoLock, useLocks } from '../src/service';
+import { operate, refresh, rename, setAutoLock, useLocks } from '../src/service';
 
 Object.defineProperty(globalThis, 'crypto', { value: webcrypto, configurable: true });
 const lock: Lock = { id: 'test-lock', bluetoothDeviceId: 'bt', name: 'Cabinet', autoLock: false, model: 'M02', serialNumber: '12345678', batteryLevel: null, batteryUpdatedAt: null, lastConnectedAt: null, createdAt: 1 };
@@ -14,6 +14,7 @@ beforeEach(async () => {
   vi.stubGlobal('navigator', { bluetooth: { getDevices: async () => [device] } });
   await db.locks.clear(); await db.credentials.clear(); await db.operations.clear();
   await db.locks.add(lock); await db.credentials.add({ lockId: lock.id, signKey: '00112233445566778899aabbccddeeff' });
+  await refresh();
 });
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
@@ -56,6 +57,7 @@ it('does not schedule auto-lock when the unlock is rejected', async () => {
 
 it('recovers an authorized saved device before reconnect is selected', async () => {
   const requestDevice = vi.fn();
+  vi.spyOn(Transport.prototype, 'connect').mockResolvedValue();
   const saved = { ...lock, id: 'another-lock', bluetoothDeviceId: 'other-bt' };
   await db.locks.add(saved);
   vi.stubGlobal('navigator', { bluetooth: { getDevices: async () => [{ ...device, id: 'other-bt' }], requestDevice } });

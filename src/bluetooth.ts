@@ -54,7 +54,12 @@ export async function chooseDevice(): Promise<BluetoothDevice> {
   if (unavailable) throw new Error(unavailable);
   return navigator.bluetooth.requestDevice({ filters: [{ services: [SERVICE] }, { namePrefix: 'EL_' }], optionalServices: [SERVICE, 'battery_service'] });
 }
-export async function recoverDevice(id: string): Promise<BluetoothDevice | null> {
-  if (!navigator.bluetooth?.getDevices) return null;
-  return (await navigator.bluetooth.getDevices()).find(device => device.id === id) ?? null;
+export async function permittedDevices(): Promise<BluetoothDevice[]> {
+  try { return await navigator.bluetooth?.getDevices?.() ?? []; }
+  catch { return []; } // A user gesture can still open the chooser.
+}
+
+export function advertisesSerial(device: BluetoothDevice, serial: string): boolean {
+  return device.name?.startsWith('EL_') === true &&
+    device.name.slice(3).toLowerCase() === serial.trim().toLowerCase();
 }
