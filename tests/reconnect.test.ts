@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { db, type Lock } from '../src/database';
 import { COMMAND, NOTIFY, SERVICE } from '../src/protocol';
-import { operate, refresh, reselect } from '../src/service';
+import { operate, refresh, reselect, select } from '../src/service';
 
 function peripheral(id: string, name: string, reply = 3) {
   const notifications = Object.assign(new EventTarget(), {
@@ -40,6 +40,16 @@ beforeEach(async () => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
+it('shows compatible devices when adding a lock', async () => {
+  const requestDevice = vi.fn().mockResolvedValue(peripheral('new', 'EL_B2ib832p').device);
+  vi.stubGlobal('navigator', { bluetooth: { requestDevice } });
+  await select();
+  expect(requestDevice).toHaveBeenCalledWith({
+    filters: [{ services: [SERVICE] }, { namePrefix: 'EL_' }],
+    optionalServices: [SERVICE, 'battery_service'],
+  });
+});
+
 it('uses the already authorized device with the saved serial after a restart', async () => {
   const { device, write } = peripheral('renewed', 'EL_B2ib832p');
   const requestDevice = vi.fn();
@@ -72,6 +82,10 @@ it('accepts a new ID in the chooser for the saved serial without a setup unlock'
   vi.stubGlobal('navigator', { bluetooth: { requestDevice } });
   await refresh();
   await reselect(lock);
+  expect(requestDevice).toHaveBeenCalledWith({
+    filters: [{ name: 'EL_B2ib832p' }],
+    optionalServices: [SERVICE, 'battery_service'],
+  });
   expect(device.gatt.connect).toHaveBeenCalledOnce();
   expect(write).not.toHaveBeenCalled();
   expect((await db.locks.get(lock.id))?.bluetoothDeviceId).toBe('original');
@@ -88,6 +102,10 @@ it('opens the chooser directly from Unlock when Chrome cannot restore permission
   await refresh();
   const operation = operate(lock, 1);
   expect(requestDevice).toHaveBeenCalledOnce(); // Still inside the tap.
+  expect(requestDevice).toHaveBeenCalledWith({
+    filters: [{ name: 'EL_B2ib832p' }],
+    optionalServices: [SERVICE, 'battery_service'],
+  });
   expect((await operation).result).toBe('confirmed');
   expect(write).toHaveBeenCalledOnce();
   await operate(lock, 1);

@@ -46,7 +46,7 @@ async function resolveDevice(lock: Lock, use: DeviceUse) {
   const matches = granted.filter(device => advertisesSerial(device, lock.serialNumber));
   const candidate = preferred ?? original ?? (matches.length === 1 ? matches[0] : undefined);
   const retry = use === 'command' && matches.length === 0 ? lastFailed.get(lock.id) : undefined;
-  const device = candidate ?? retry ?? await chooseDevice();
+  const device = candidate ?? retry ?? await chooseDevice(lock.serialNumber);
   if (device.id !== lock.bluetoothDeviceId) {
     if (!advertisesSerial(device, lock.serialNumber)) throw new Error(`Select EL_${lock.serialNumber} for ${lock.name}.`);
     const others = await db.locks.filter(other => other.id !== lock.id &&

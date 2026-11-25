@@ -49,10 +49,13 @@ export function bluetoothUnavailableMessage(secure: boolean, userAgent: string):
 export function bluetoothSupportMessage(): string | null {
   return navigator.bluetooth ? null : bluetoothUnavailableMessage(window.isSecureContext, navigator.userAgent);
 }
-export async function chooseDevice(): Promise<BluetoothDevice> {
+export async function chooseDevice(serial?: string): Promise<BluetoothDevice> {
   const unavailable = bluetoothSupportMessage();
   if (unavailable) throw new Error(unavailable);
-  return navigator.bluetooth.requestDevice({ filters: [{ services: [SERVICE] }, { namePrefix: 'EL_' }], optionalServices: [SERVICE, 'battery_service'] });
+  const filters = serial
+    ? [{ name: `EL_${serial.trim()}` }]
+    : [{ services: [SERVICE] }, { namePrefix: 'EL_' }];
+  return navigator.bluetooth.requestDevice({ filters, optionalServices: [SERVICE, 'battery_service'] });
 }
 export async function permittedDevices(): Promise<BluetoothDevice[]> {
   try { return await navigator.bluetooth?.getDevices?.() ?? []; }
